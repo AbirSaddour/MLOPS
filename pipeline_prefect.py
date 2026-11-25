@@ -1,6 +1,7 @@
 """Pipeline Prefect : orchestration des étapes du projet ML (Churn)."""
 
 import argparse
+import os
 import subprocess
 import sys
 
@@ -17,14 +18,23 @@ from model_pipeline import (
 DATA_PATH = "Churn_Modelling.csv"
 MODEL_PATH = "classifier.joblib"
 CODE_FILES = ["model_pipeline.py", "main.py", "pipeline_prefect.py"]
+REPO_URL = "https://github.com/AbirSaddour/MLOPS.git"
 
 
 def run_command(command):
-    """Exécute une commande et fait échouer la task en cas d'erreur."""
+    """Exécute une commande Python (-m) et fait échouer la task en cas d'erreur."""
     subprocess.run([sys.executable, "-m", *command], check=True)
 
 
 # ---------------------------- TASKS : code ----------------------------
+@task(name="Récupération du projet")
+def fetch_project():
+    if os.path.isdir(".git"):
+        subprocess.run(["git", "pull", "--ff-only"], check=True)
+    else:
+        subprocess.run(["git", "clone", REPO_URL, "project_repo"], check=True)
+
+
 @task(name="Installer les dépendances")
 def install_dependencies():
     run_command(["pip", "install", "-r", "requirements.txt"])
@@ -81,6 +91,7 @@ def evaluate(model, data):
 # ---------------------------- FLOWS ----------------------------
 @flow(name="code")
 def code_flow():
+    fetch_project()
     install_dependencies()
     format_code()
     check_quality()
